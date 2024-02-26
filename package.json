@@ -1,0 +1,35 @@
+{
+  "name": "@csma/toolbelt",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "description": "A collection of JS utilities for common use cases within CSMA Technology",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CSMA-Technology/csma-toolbelt.git"
+  },
+  "author": "Adrian Moya",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CSMA-Technology/csma-toolbelt/issues"
+  },
+  "homepage": "https://github.com/CSMA-Technology/csma-toolbelt#readme",
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "@typescript-eslint/eslint-plugin": "^7.0.1",
+    "@typescript-eslint/parser": "^7.0.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  }
+}
