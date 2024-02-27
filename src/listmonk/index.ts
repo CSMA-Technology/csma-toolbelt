@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'; // Imported like this for Cloudflare compatibility
 export interface TransactionalEmail {
 	id: number;
 	recipientEmail: string;
