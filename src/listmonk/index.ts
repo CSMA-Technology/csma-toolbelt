@@ -17,6 +17,42 @@ export default class ListmonkClient {
 		this.authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 	}
 
+	deleteSubscriber = async (email: string) => {
+		console.log(`Deleting subscriber for ${email}`);
+		const getSubscriberResponse = await fetch(
+			`${this.apiUrl}/subscribers?query=${encodeURIComponent(`subscribers.email = '${email}'`)}`,
+			{
+				headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }
+			}
+		);
+		if (!getSubscriberResponse.ok) {
+			console.error(
+				`Could not get subscriber for email ${email}. Got status ${getSubscriberResponse.status} from Listmonk. Message: ${await getSubscriberResponse.text()}`
+			);
+			return;
+		}
+		const subscribers = (await getSubscriberResponse.json()).data.results as { id: string }[];
+		if (subscribers.length < 1) {
+			console.warn(`No subscribers found for email ${email}`);
+			return;
+		}
+		if (subscribers.length > 1) {
+			// Listmonk treats subscriber emails as unique, so this should never happen. But just in case.
+			throw new Error(`Found ${subscribers.length} subscribers for email ${email}. Expected 1.`);
+		}
+		const deleteSubscriberResponse = await fetch(`${this.apiUrl}/subscribers/${subscribers[0].id}`, {
+			method: 'DELETE',
+			headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }
+		});
+		if (!deleteSubscriberResponse.ok) {
+			console.error(
+				`Could not delete subscriber. Got status ${deleteSubscriberResponse.status} from Listmonk. Message: ${await deleteSubscriberResponse.text()}`
+			);
+		} else {
+			console.log(`Deleted subscriber ${subscribers[0].id}`);
+		}
+	};
+
 	addSubscriber = async (email: string, name: string, status = 'enabled', lists: number[] = []) => {
 		console.log(`Creating subscriber for ${email}`);
 		const createSubscriberResponse = await fetch(`${this.apiUrl}/subscribers`, {
@@ -29,7 +65,7 @@ export default class ListmonkClient {
 				lists
 			})
 		});
-		if (createSubscriberResponse.status === 409) {
+		if (createSubscriberResponse.status === 409 && lists.length > 0) {
 			console.log('Subscriber already exists. Adding lists.');
 			const listUuids = (
 				await Promise.all(
