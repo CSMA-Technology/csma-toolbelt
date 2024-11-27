@@ -1,4 +1,7 @@
 import { Buffer } from 'node:buffer'; // Imported like this for Cloudflare compatibility
+/**
+ * Represents a transactional email that is sent to a user.
+ */
 export interface TransactionalEmail {
 	id: number;
 	recipientEmail: string;
@@ -7,6 +10,15 @@ export interface TransactionalEmail {
 	 * When sending this email template, the recipient will be subscribed to these lists
 	 */
 	associatedLists?: number[];
+}
+
+/**
+ * Represents an email that is sent to admins for analytics purposes.
+ */
+export interface AnalyticsEmail {
+	id: number;
+	recipientEmail: string;
+	variables: Record<string, string>;
 }
 
 export default class ListmonkClient {
@@ -146,6 +158,11 @@ export default class ListmonkClient {
 		}
 	};
 
+	/**
+	 * Sends a transactional email to a customer.
+	 * @param email
+	 * @param options
+	 */
 	sendTransactionalEmail = async (email: TransactionalEmail, options?: { userDisplayName?: string }) => {
 		await this.addSubscriber(
 			email.recipientEmail,
@@ -168,6 +185,30 @@ export default class ListmonkClient {
 			throw new Error(`Got status ${response.status} from Listmonk.
         Status text: ${response.statusText}.
         Body: ${await response.text()}`);
+		}
+		console.log(`Status code from Listmonk for email send: ${response.status}`);
+	};
+
+	/**
+	 * Sends an email to admins for analytics purposes.
+	 * @param email
+	 */
+	sendAnalyticsEmail = async (email: AnalyticsEmail) => {
+		console.log(`Sending ${email.constructor.name} email to ${email.recipientEmail}`);
+		const emailBody = JSON.stringify({
+			subscriber_email: email.recipientEmail,
+			template_id: email.id,
+			data: email.variables
+		});
+		const response = await fetch(`${this.apiUrl}/tx`, {
+			method: 'POST',
+			headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' },
+			body: emailBody
+		});
+		if (response.status !== 200) {
+			throw new Error(`Got status ${response.status} from Listmonk.
+				Status text: ${response.statusText}.
+				Body: ${await response.text()}`);
 		}
 		console.log(`Status code from Listmonk for email send: ${response.status}`);
 	};
