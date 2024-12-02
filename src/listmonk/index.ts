@@ -17,7 +17,8 @@ export interface TransactionalEmail {
  */
 export interface AnalyticsEmail {
 	id: number;
-	recipientEmail: string;
+	/** A Listmonk list ID. Each member of the list will receieve an individual email. */
+	recipientList: number;
 	variables: Record<string, string>;
 }
 
@@ -191,25 +192,42 @@ export default class ListmonkClient {
 
 	/**
 	 * Sends an email to admins for analytics purposes.
-	 * @param email
+	 * @param emailData - The AnalyticsEmail object to send
 	 */
-	sendAnalyticsEmail = async (email: AnalyticsEmail) => {
-		console.log(`Sending ${email.constructor.name} email to ${email.recipientEmail}`);
-		const emailBody = JSON.stringify({
-			subscriber_email: email.recipientEmail,
-			template_id: email.id,
-			data: email.variables
+	sendAnalyticsEmail = async (emailData: AnalyticsEmail) => {
+		console.log(`Sending ${emailData.constructor.name} email to list ${emailData.recipientList}`);
+		console.log('Fetching list members');
+		const listMembersResponse = await fetch(`${this.apiUrl}/subscribers?list_id=${emailData.recipientList}`, {
+			headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }
 		});
-		const response = await fetch(`${this.apiUrl}/tx`, {
-			method: 'POST',
-			headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' },
-			body: emailBody
-		});
-		if (response.status !== 200) {
-			throw new Error(`Got status ${response.status} from Listmonk.
-				Status text: ${response.statusText}.
-				Body: ${await response.text()}`);
+		if (!listMembersResponse.ok) {
+			throw new Error(
+				`Could not get list members. Got status ${listMembersResponse.status} from Listmonk. Message: ${await listMembersResponse.text()}`
+			);
 		}
-		console.log(`Status code from Listmonk for email send: ${response.status}`);
+		const listMembers = (await listMembersResponse.json()).data.results as { email: string }[];
+		console.log(`Found ${listMembers.length} list members. Sending analytics email to each.`);
+		const sendResults = await Promise.allSettled(
+			listMembers.map(async ({ email }) => {
+				const emailBody = JSON.stringify({
+					subscriber_email: email,
+					template_id: emailData.id,
+					data: emailData.variables
+				});
+				const response = await fetch(`${this.apiUrl}/tx`, {
+					method: 'POST',
+					headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' },
+					body: emailBody
+				});
+				if (response.status !== 200) {
+					throw new Error(`Error sending to ${email}. Got status ${response.status} from Listmonk.
+					Status text: ${response.statusText}.
+					Body: ${await response.text()}`);
+				}
+			})
+		);
+		console.log(
+			`Sent analytics email to ${sendResults.filter((r) => r.status === 'fulfilled').length} list members. Encountered ${sendResults.filter((r) => r.status === 'rejected').length} errors.`
+		);
 	};
 }
