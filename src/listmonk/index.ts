@@ -78,43 +78,45 @@ export default class ListmonkClient {
 				lists
 			})
 		});
-		if (createSubscriberResponse.status === 409 && lists.length > 0) {
-			console.log('Subscriber already exists. Adding lists.');
-			const listUuids = (
-				await Promise.all(
-					lists.map(async (listId) => {
-						const listResponse = await fetch(`${this.apiUrl}/lists/${listId}`, {
-							headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }
-						});
-						if (!listResponse.ok) {
-							console.error(
-								`Could not get list UUID for list ${listId}. Got status ${listResponse.status} from Listmonk. Message: ${await listResponse.text()}`
-							);
-							return null;
-						}
-						const listJson = await listResponse.json();
-						return listJson.data.uuid;
+		if (createSubscriberResponse.status === 409) {
+			console.log('Subscriber already exists.');
+			if (lists.length > 0) {
+				console.log('Adding lists.');
+				const listUuids = (
+					await Promise.all(
+						lists.map(async (listId) => {
+							const listResponse = await fetch(`${this.apiUrl}/lists/${listId}`, {
+								headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }
+							});
+							if (!listResponse.ok) {
+								console.error(
+									`Could not get list UUID for list ${listId}. Got status ${listResponse.status} from Listmonk. Message: ${await listResponse.text()}`
+								);
+								return null;
+							}
+							const listJson = await listResponse.json();
+							return listJson.data.uuid;
+						})
+					)
+				).filter((uuid) => uuid !== null);
+				const listResponse = await fetch(`${this.apiUrl}/public/subscription`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						email,
+						list_uuids: listUuids
 					})
-				)
-			).filter((uuid) => uuid !== null);
-			const listResponse = await fetch(`${this.apiUrl}/public/subscription`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					email,
-					list_uuids: listUuids
-				})
-			});
-			if (listResponse.status !== 200) {
-				console.error(
-					`Could not add subscriber to lists. Got status ${listResponse.status} from Listmonk. Message: ${await listResponse.text()}`
-				);
-			} else {
-				console.log(`Added user to lists ${lists}`);
+				});
+				if (listResponse.status !== 200) {
+					console.error(
+						`Could not add subscriber to lists. Got status ${listResponse.status} from Listmonk. Message: ${await listResponse.text()}`
+					);
+				} else {
+					console.log(`Added user to lists ${lists}`);
+				}
+				return;
 			}
-			return;
-		}
-		if (createSubscriberResponse.status !== 200) {
+		} else if (createSubscriberResponse.status !== 200) {
 			throw new Error(`Error creating subscriber. Got status ${createSubscriberResponse.status} from Listmonk.
       Status text: ${createSubscriberResponse.statusText}.
       Body: ${await createSubscriberResponse.text()}`);
