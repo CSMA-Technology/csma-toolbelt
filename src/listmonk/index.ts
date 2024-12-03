@@ -214,7 +214,8 @@ export default class ListmonkClient {
 				const emailBody = JSON.stringify({
 					subscriber_email: email,
 					template_id: emailData.id,
-					data: emailData.variables
+					data: emailData.variables,
+					from_email: 'Blend Analytics <analytics@blendreading.com>'
 				});
 				const response = await fetch(`${this.apiUrl}/tx`, {
 					method: 'POST',
